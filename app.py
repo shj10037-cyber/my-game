@@ -1,68 +1,140 @@
 import streamlit as st
+import random
 
-st.set_page_config(page_title="병맛 키우기", page_icon="🥊")
+st.set_page_config(page_title="LOL 텍스트 시뮬레이터", page_icon="⚔️")
 
-st.title("🥊 병맛 캐릭터 키우기 & 맞짱 게임")
-st.write("버튼을 미친듯이 누르고 캐릭터를 진화시켜 보스를 제압하세요!")
+st.title("⚔️ 리그 오브 레전드: 소환사의 협곡")
+st.write("챔피언을 선택하고 라인전과 한타를 승리로 이끌어 넥서스를 파괴하세요!")
 
-# 데이터 저장 공간 만들기
-if "power" not in st.session_state:
-    st.session_state.power = 10
+# 상태 초기화
+if "game_state" not in st.session_state:
+    st.session_state.game_state = "pick" # pick, ingame, result
+if "champ" not in st.session_state:
+    st.session_state.champ = None
+if "gold" not in st.session_state:
+    st.session_state.gold = 500
+if "kda" not in st.session_state:
+    st.session_state.kda = {"k": 0, "d": 0, "a": 0}
+if "tower_hp" not in st.session_state:
+    st.session_state.tower_hp = 100
+if "log" not in st.session_state:
+    st.session_state.log = []
 
-# 전투력에 따른 캐릭터 진화
-power = st.session_state.power
-if power >= 500:
-    char_name = "👑 우주 최강 헬스 짱가"
-elif power >= 250:
-    char_name = "🦖 3단 변신 헬창 공룡"
-elif power >= 100:
-    char_name = "🥋 3년 차 동네 짱"
-elif power >= 40:
-    char_name = "🐔 빡친 중닭"
-else:
-    char_name = "🐣 갓 태어난 병아리"
+# 1. 픽창 (챔피언 선택)
+if st.session_state.game_state == "pick":
+    st.subheader("🛡️ 챔피언을 선택하세요")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🗡️ 야스오 (미드 - 피지컬형)", use_container_width=True):
+            st.session_state.champ = {"name": "야스오", "role": "미드", "skill": "하사기! 바람장막!"}
+            st.session_state.game_state = "ingame"
+            st.rerun()
+            
+        if st.button("🏹 카이사 (원딜 - 캐리형)", use_container_width=True):
+            st.session_state.champ = {"name": "카이사", "role": "원딜", "skill": "사냥의 본능!"}
+            st.session_state.game_state = "ingame"
+            st.rerun()
 
-# 스탯 출력
-st.subheader(f"현재 캐릭터: {char_name}")
-st.metric(label="내 전투력", value=f"{power} CP")
+    with col2:
+        if st.button("🔮 사일러스 (미드 - 돌진형)", use_container_width=True):
+            st.session_state.champ = {"name": "사일러스", "role": "미드", "skill": "강탈!"}
+            st.session_state.game_state = "ingame"
+            st.rerun()
+            
+        if st.button("💥 벡스 (미드 - 제압형)", use_container_width=True):
+            st.session_state.champ = {"name": "벡스", "role": "미드", "skill": "황량한 파도!"}
+            st.session_state.game_state = "ingame"
+            st.rerun()
 
-# 클릭해서 능력치 올리기
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("💪 운동하기 (+5 CP)", use_container_width=True):
-        st.session_state.power += 5
-        st.rerun()
+# 2. 인게임 (협곡 진행)
+elif st.session_state.game_state == "ingame":
+    champ = st.session_state.champ
+    kda = st.session_state.kda
+    
+    st.write(f"### 🎮 내 챔피언: **{champ['name']}** ({champ['role']})")
+    
+    # 전황판
+    col1, col2, col3 = st.columns(3)
+    col1.metric("KDA", f"{kda['k']} / {kda['d']} / {kda['a']}")
+    col2.metric("보유 골드", f"{st.session_state.gold} G")
+    col3.metric("적 포탑 체력", f"{st.session_state.tower_hp}%")
 
-with col2:
-    if st.button("🍗 닭가슴살 먹기 (+15 CP)", use_container_width=True):
-        st.session_state.power += 15
-        st.rerun()
+    st.markdown("---")
+    st.subheader("⚔️ 라인전 & 행동 선택")
 
-st.markdown("---")
-st.subheader("⚔️ 맞짱 신청하기")
-
-# 보스 목록
-bosses = [
-    {"name": "길 가던 초딩", "req": 30, "msg": "초딩의 떡볶이를 빼앗아 승리했습니다!"},
-    {"name": "동네 비둘기 대장", "req": 100, "msg": "비둘기 떼를 물리치고 구청을 접수했습니다!"},
-    {"name": "민트초코 몬스터", "req": 250, "msg": "민트초코를 다 먹어서 퇴치했습니다!"},
-    {"name": "최종보스: 전교 1등 안경", "req": 500, "msg": "안경을 벗겨 최종 승리했습니다!"}
-]
-
-for boss in bosses:
-    col_a, col_b = st.columns([2, 1])
-    with col_a:
-        st.write(f"**{boss['name']}** (필요 전투력: {boss['req']} CP)")
-    with col_b:
-        if st.button(f"덤비기", key=boss['name']):
-            if power >= boss['req']:
-                st.balloons()
-                st.success(f"🎉 승리! {boss['msg']}")
-                st.session_state.power += 20
+    action1, action2, action3 = st.columns(3)
+    
+    # 행동 1: CS 수급 / 딜교
+    with action1:
+        if st.button("🌾 CS 먹기 & 딜교", use_container_width=True):
+            rand = random.random()
+            if rand > 0.3:
+                st.session_state.gold += 150
+                st.session_state.log.insert(0, "🌾 막타를 잘 쳐서 150골드를 획득했습니다.")
             else:
-                st.error("💀 패배! 전투력이 부족합니다. 운동을 더 하세요!")
+                st.session_state.kda['d'] += 1
+                st.session_state.log.insert(0, "💀 딜교 실패! 갱킹을 맞아 사망했습니다.")
+            st.rerun()
 
-st.markdown("---")
-if st.button("🔄 리셋 (처음부터 다시)"):
-    st.session_state.power = 10
-    st.rerun()
+    # 행동 2: 솔로 킬 시도
+    with action2:
+        if st.button(f"⚡ 궁극기 사용 ({champ['skill']})", use_container_width=True):
+            rand = random.random()
+            if rand > 0.4:
+                st.session_state.kda['k'] += 1
+                st.session_state.gold += 300
+                st.session_state.tower_hp = max(0, st.session_state.tower_hp - 25)
+                st.session_state.log.insert(0, f"🔥 {champ['skill']} 화려한 피지컬로 솔로킬 성공! (+300G)")
+            else:
+                st.session_state.kda['d'] += 1
+                st.session_state.log.insert(0, "💀 뇌절! 타워 다이브를 치다 역으로 따였습니다.")
+            st.rerun()
+
+    # 행동 3: 로밍 / 오브젝트 한타
+    with action3:
+        if st.button("🐉 용/바론 한타 참여", use_container_width=True):
+            rand = random.random()
+            if rand > 0.5:
+                st.session_state.kda['k'] += 2
+                st.session_state.kda['a'] += 1
+                st.session_state.gold += 500
+                st.session_state.tower_hp = max(0, st.session_state.tower_hp - 40)
+                st.session_state.log.insert(0, "🎉 대규모 한타 대승! 용을 획득하고 포탑을 밀어붙입니다.")
+            else:
+                st.session_state.kda['d'] += 1
+                st.session_state.log.insert(0, "💀 한타 패배... 팀원이 '미드 차이'를 외칩니다.")
+            st.rerun()
+
+    # 승리 조건 (포탑 파괴)
+    if st.session_state.tower_hp <= 0:
+        st.session_state.game_state = "result"
+        st.rerun()
+
+    # 플레이 기록 출력
+    st.markdown("---")
+    st.write("📜 **경기 진행 상황**")
+    for l in st.session_state.log[:5]:
+        st.write(f"- {l}")
+
+# 3. 결과 창
+elif st.session_state.game_state == "result":
+    st.balloons()
+    st.success("🎉 VICTORY! 적 넥서스가 파괴되었습니다!")
+    
+    kda = st.session_state.kda
+    st.write(f"### 최종 KDA: **{kda['k']} / {kda['d']} / {kda['a']}**")
+    st.write(f"### 최종 획득 골드: **{st.session_state.gold} G**")
+    
+    if kda['k'] >= 5:
+        st.write("👑 **평가**: 당신은 팀을 캐리한 명예 5단계 플레이어입니다!")
+    else:
+        st.write("👍 **평가**: 1인분은 하고 승리했습니다.")
+
+    if st.button("🔄 다음 판 하기"):
+        st.session_state.game_state = "pick"
+        st.session_state.gold = 500
+        st.session_state.kda = {"k": 0, "d": 0, "a": 0}
+        st.session_state.tower_hp = 100
+        st.session_state.log = []
+        st.rerun()
