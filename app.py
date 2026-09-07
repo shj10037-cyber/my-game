@@ -1,249 +1,191 @@
 import streamlit as st
-import random
-import time
+import streamlit.components.v1 as components
 
-st.set_page_config(page_title="LOL 텍스트 시뮬레이터 2.0", page_icon="⚔️", layout="wide")
+st.set_page_config(page_title="2D 아케이드 슈팅", page_icon="🚀", layout="centered")
 
-st.title("⚔️ 리그 오브 레전드: 소환사의 협곡 2.0")
-st.write("아이템을 구매하고 스킬을 찍으며, 포탑 3개와 억제기를 밀어 넥서스를 파괴하세요!")
+st.title("🚀 우주 슈팅 아케이드 게임")
+st.write("키보드 방향키와 스페이스바로 직접 조작하는 웹 액션 게임입니다!")
 
-# 스킬 정보
-SKILLS = {
-    "야스오": {"Q": "강철의 폭풍", "W": "바람장막", "E": "질풍검", "R": "최후의 숨결"},
-    "사일러스": {"Q": "사슬 후려치기", "W": "국왕의 처형", "E": "도주/억압", "R": "강탈"},
-    "벡스": {"Q": "안개파동", "W": "공포 침식", "E": "어둠의 파도", "R": "황량한 파도"},
-    "카이사": {"Q": "이케시아의 우량", "W": "공허의 추적자", "E": "고속 충전", "R": "사냥의 본능"}
-}
+# HTML5 Canvas 기반의 고퀄리티 2D 게임 코드
+game_html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        canvas {
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 15px #00ffcc;
+            background: #0d0f18;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="500" height="600"></canvas>
+    <div class="info">조작법: [←][→] 이동 | [Space] 미사일 발사</div>
 
-# 상점 아이템 정보
-ITEMS = {
-    "도란의 검 (+100 HP, +10 공격력)": {"price": 450, "hp": 100, "atk": 10},
-    "광전사의 신발 (+15 공격력)": {"price": 1100, "hp": 0, "atk": 15},
-    "몰락한 왕의 단검 (+30 공격력)": {"price": 3300, "hp": 0, "atk": 30},
-    "무한의 대검 (+70 공격력)": {"price": 3400, "hp": 0, "atk": 70},
-    "워모그의 갑옷 (+500 HP)": {"price": 3100, "hp": 500, "atk": 0}
-}
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
 
-# 게임 상태 초기화
-if "state" not in st.session_state:
-    st.session_state.state = "pick"
-if "champ" not in st.session_state:
-    st.session_state.champ = None
-if "level" not in st.session_state:
-    st.session_state.level = 1
-if "exp" not in st.session_state:
-    st.session_state.exp = 0
-if "hp" not in st.session_state:
-    st.session_state.hp = 500
-if "max_hp" not in st.session_state:
-    st.session_state.max_hp = 500
-if "atk" not in st.session_state:
-    st.session_state.atk = 50
-if "gold" not in st.session_state:
-    st.session_state.gold = 500
-if "kda" not in st.session_state:
-    st.session_state.kda = {"k": 0, "d": 0, "a": 0}
-if "cs" not in st.session_state:
-    st.session_state.cs = 0
-if "inventory" not in st.session_state:
-    st.session_state.inventory = []
-if "turrets" not in st.session_state:
-    st.session_state.turrets = ["1차 포탑", "2차 포탑", "억제기 포탑", "억제기", "쌍둥이 포탑/넥서스"]
-if "turret_hp" not in st.session_state:
-    st.session_state.turret_hp = 100
-if "log" not in st.session_state:
-    st.session_state.log = []
+        // 플레이어 설정
+        let player = { x: 230, y: 520, width: 40, height: 40, speed: 6, hp: 100 };
+        let bullets = [];
+        let enemies = [];
+        let score = 0;
+        let gameOver = false;
 
-# 경험치 및 레벨업 체크
-def check_levelup():
-    req_exp = st.session_state.level * 100
-    if st.session_state.exp >= req_exp:
-        st.session_state.level += 1
-        st.session_state.exp -= req_exp
-        st.session_state.max_hp += 80
-        st.session_state.hp = st.session_state.max_hp
-        st.session_state.atk += 8
-        st.session_state.log.insert(0, f"🆙 레벨 업! {st.session_state.level}레벨이 되었습니다! (최대 HP/공격력 증가)")
+        // 키보드 입력 관리
+        let keys = {};
+        window.addEventListener("keydown", (e) => {
+            keys[e.code] = true;
+            if(e.code === "Space") e.preventDefault();
+        });
+        window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
-# 1. 챔피언 선택 화면
-if st.session_state.state == "pick":
-    st.subheader("🛡️ 소환사의 협곡 - 챔피언 선택")
-    c1, c2, c3, c4 = st.columns(4)
-    
-    with c1:
-        if st.button("🗡️ 야스오", use_container_width=True):
-            st.session_state.champ = "야스오"
-            st.session_state.state = "game"
-            st.rerun()
-    with c2:
-        if st.button("🔮 사일러스", use_container_width=True):
-            st.session_state.champ = "사일러스"
-            st.session_state.state = "game"
-            st.rerun()
-    with c3:
-        if st.button("💥 벡스", use_container_width=True):
-            st.session_state.champ = "벡스"
-            st.session_state.state = "game"
-            st.rerun()
-    with c4:
-        if st.button("🏹 카이사", use_container_width=True):
-            st.session_state.champ = "카이사"
-            st.session_state.state = "game"
-            st.rerun()
+        // 적 생성
+        function spawnEnemy() {
+            if (gameOver) return;
+            let size = Math.random() * 20 + 20;
+            enemies.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                width: size,
+                height: size,
+                speed: Math.random() * 2 + 2
+            });
+        }
+        setInterval(spawnEnemy, 800);
 
-# 2. 메인 게임 화면
-elif st.session_state.state == "game":
-    champ = st.session_state.champ
-    skills = SKILLS[champ]
-    current_target = st.session_state.turrets[0] if st.session_state.turrets else "넥서스"
-    
-    # 상단 정보바
-    st.markdown(f"### 🎮 **{champ}** (Lv.{st.session_state.level}) | 목표: **{current_target} 파괴**")
-    
-    col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-    col_stat1.metric("체력 (HP)", f"{st.session_state.hp} / {st.session_state.max_hp}")
-    col_stat2.metric("공격력 / 골드", f"{st.session_state.atk} ATK / {st.session_state.gold} G")
-    col_stat3.metric("KDA (CS)", f"{st.session_state.kda['k']}/{st.session_state.kda['d']}/{st.session_state.kda['a']} ({st.session_state.cs} CS)")
-    col_stat4.metric("목표 구조물 HP", f"{st.session_state.turret_hp}%")
-    
-    st.progress(st.session_state.hp / st.session_state.max_hp, text="내 체력")
-    st.progress(st.session_state.turret_hp / 100, text=f"{current_target} 체력")
-    
-    st.markdown("---")
-    
-    # 탭 구분: 라인전/전투, 상점, 가방
-    tab1, tab2, tab3 = st.tabs(["⚔️ 라인전 & 전투", "🛒 귀환 & 상점", "🎒 아이템 가방"])
-    
-    with tab1:
-        st.subheader("라인전 선택지")
-        act1, act2, act3, act4 = st.columns(4)
-        
-        with act1:
-            if st.button("🌾 CS 막타 치기", use_container_width=True):
-                earned_cs = random.randint(3, 6)
-                earned_gold = earned_cs * 21
-                st.session_state.cs += earned_cs
-                st.session_state.gold += earned_gold
-                st.session_state.exp += 35
-                check_levelup()
-                st.session_state.log.insert(0, f"🌾 미니언 {earned_cs}마리를 섭취했습니다. (+{earned_gold}G / +35 EXP)")
-                st.rerun()
-                
-        with act2:
-            if st.button(f"⚡ 스킬 딜교 ({skills['Q']})", use_container_width=True):
-                damage = st.session_state.atk + random.randint(10, 30)
-                taken_damage = random.randint(20, 60)
-                st.session_state.hp = max(0, st.session_state.hp - taken_damage)
-                st.session_state.turret_hp = max(0, st.session_state.turret_hp - 10)
-                st.session_state.exp += 50
-                check_levelup()
-                
-                if st.session_state.hp == 0:
-                    st.session_state.kda['d'] += 1
-                    st.session_state.hp = st.session_state.max_hp
-                    st.session_state.log.insert(0, f"💀 딜교 중 사망했습니다! 우물에서 부활합니다. (-{taken_damage} HP)")
-                else:
-                    st.session_state.log.insert(0, f"🔥 {skills['Q']} 스킬로 딜교 성공! 적 포탑 압박 (+{damage} 데미지 / -{taken_damage} HP 받음)")
-                st.rerun()
+        // 총알 발사
+        let lastShot = 0;
+        function shoot() {
+            let now = Date.now();
+            if (now - lastShot > 150) {
+                bullets.push({ x: player.x + player.width / 2 - 3, y: player.y, width: 6, height: 12, speed: 8 });
+                lastShot = now;
+            }
+        }
 
-        with act3:
-            if st.button(f"💥 궁극기 솔킬 시도 ({skills['R']})", use_container_width=True):
-                win_rate = 0.5 + (st.session_state.atk - 50) * 0.005
-                if random.random() < win_rate:
-                    st.session_state.kda['k'] += 1
-                    st.session_state.gold += 300
-                    st.session_state.exp += 120
-                    st.session_state.turret_hp = max(0, st.session_state.turret_hp - 25)
-                    check_levelup()
-                    st.session_state.log.insert(0, f"🩸 {skills['R']}! 화려한 피지컬로 솔로 킬을 올렸습니다! (+300G / +120 EXP)")
-                else:
-                    st.session_state.kda['d'] += 1
-                    st.session_state.hp = st.session_state.max_hp
-                    st.session_state.log.insert(0, f"💀 궁극기가 빗나가 역으로 킬을 따였습니다. 우물 부활!")
-                st.rerun()
+        // 게임 루프
+        function update() {
+            if (gameOver) return;
 
-        with act4:
-            if st.button("🐉 바론/내셔 남작 한타", use_container_width=True):
-                if random.random() > 0.4:
-                    st.session_state.kda['k'] += 2
-                    st.session_state.kda['a'] += 1
-                    st.session_state.gold += 600
-                    st.session_state.exp += 200
-                    st.session_state.turret_hp = max(0, st.session_state.turret_hp - 40)
-                    check_levelup()
-                    st.session_state.log.insert(0, "🎉 바론 버프 획득! 대규모 한타 대승으로 적 포탑을 대량 파괴합니다.")
-                else:
-                    st.session_state.kda['d'] += 1
-                    st.session_state.hp = st.session_state.max_hp
-                    st.session_state.log.insert(0, "💀 바론 둥지 한타에서 대패했습니다...")
-                st.rerun()
+            // 이동
+            if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+            if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+            if (keys["Space"]) shoot();
 
-    with tab2:
-        st.subheader("상점 (아이템 구매 / HP 회복)")
-        if st.button("💊 우물 귀환 (HP 100% 회복)"):
-            st.session_state.hp = st.session_state.max_hp
-            st.session_state.log.insert(0, "🏠 귀환하여 체력을 완전히 회복했습니다.")
-            st.rerun()
-            
-        st.markdown("---")
-        for item_name, info in ITEMS.items():
-            b_col1, b_col2 = st.columns([3, 1])
-            b_col1.write(f"**{item_name}** - {info['price']}G")
-            if b_col2.button("구매", key=item_name):
-                if st.session_state.gold >= info['price']:
-                    st.session_state.gold -= info['price']
-                    st.session_state.max_hp += info['hp']
-                    st.session_state.hp += info['hp']
-                    st.session_state.atk += info['atk']
-                    st.session_state.inventory.append(item_name)
-                    st.session_state.log.insert(0, f"🛒 {item_name}을(를) 구매했습니다!")
-                    st.rerun()
-                else:
-                    st.error("골드가 부족합니다!")
+            // 총알 이동
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= bullets[i].speed;
+                if (bullets[i].y < 0) bullets.splice(i, 1);
+            }
 
-    with tab3:
-        st.subheader("착용 중인 아이템")
-        if st.session_state.inventory:
-            for inv in st.session_state.inventory:
-                st.write(f"- {inv}")
-        else:
-            st.write("구매한 아이템이 없습니다.")
+            // 적 이동 및 충돌
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].y += enemies[i].speed;
 
-    # 구조물 파괴 체크
-    if st.session_state.turret_hp <= 0:
-        destroyed = st.session_state.turrets.pop(0)
-        st.session_state.log.insert(0, f"💥 **{destroyed}**을(를) 파괴했습니다!")
-        if st.session_state.turrets:
-            st.session_state.turret_hp = 100
-        else:
-            st.session_state.state = "win"
-        st.rerun()
+                // 플레이어 충돌
+                if (
+                    player.x < enemies[i].x + enemies[i].width &&
+                    player.x + player.width > enemies[i].x &&
+                    player.y < enemies[i].y + enemies[i].height &&
+                    player.y + player.height > enemies[i].y
+                ) {
+                    player.hp -= 20;
+                    enemies.splice(i, 1);
+                    if (player.hp <= 0) gameOver = true;
+                    continue;
+                }
 
-    # 진행 로그
-    st.markdown("---")
-    st.write("📜 **실시간 게임 진행 상황**")
-    for l in st.session_state.log[:6]:
-        st.write(f"- {l}")
+                // 미사일 충돌
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    if (
+                        bullets[j].x < enemies[i].x + enemies[i].width &&
+                        bullets[j].x + bullets[j].width > enemies[i].x &&
+                        bullets[j].y < enemies[i].y + enemies[i].height &&
+                        bullets[j].y + bullets[j].height > enemies[i].y
+                    ) {
+                        enemies.splice(i, 1);
+                        bullets.splice(j, 1);
+                        score += 100;
+                        break;
+                    }
+                }
 
-# 3. 승리 화면
-elif st.session_state.state == "win":
-    st.balloons()
-    st.success("🎉 VICTORY! 적 넥서스가 완전히 파괴되었습니다!")
-    st.write(f"### 최종 레벨: **Lv.{st.session_state.level}**")
-    st.write(f"### 최종 KDA: **{st.session_state.kda['k']} / {st.session_state.kda['d']} / {st.session_state.kda['a']} ({st.session_state.cs} CS)**")
-    
-    if st.button("🔄 다음 게임 시작하기"):
-        st.session_state.state = "pick"
-        st.session_state.level = 1
-        st.session_state.exp = 0
-        st.session_state.hp = 500
-        st.session_state.max_hp = 500
-        st.session_state.atk = 50
-        st.session_state.gold = 500
-        st.session_state.kda = {"k": 0, "d": 0, "a": 0}
-        st.session_state.cs = 0
-        st.session_state.inventory = []
-        st.session_state.turrets = ["1차 포탑", "2차 포탑", "억제기 포탑", "억제기", "쌍둥이 포탑/넥서스"]
-        st.session_state.turret_hp = 100
-        st.session_state.log = []
-        st.rerun()
+                if (enemies[i] && enemies[i].y > canvas.height) {
+                    enemies.splice(i, 1);
+                }
+            }
+        }
+
+        // 화면 그리기
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameOver) {
+                ctx.fillStyle = "#ff0055";
+                ctx.font = "30px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillStyle = "#fff";
+                ctx.font = "20px sans-serif";
+                ctx.fillText("최종 점수: " + score, canvas.width / 2, canvas.height / 2 + 20);
+                ctx.fillText("새로고침(F5)을 눌러 다시 시작", canvas.width / 2, canvas.height / 2 + 60);
+                return;
+            }
+
+            // 플레이어
+            ctx.fillStyle = "#00ffcc";
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width / 2, player.y);
+            ctx.lineTo(player.x, player.y + player.height);
+            ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // 총알
+            ctx.fillStyle = "#ffea00";
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
+
+            // 적
+            ctx.fillStyle = "#ff0055";
+            enemies.forEach(e => ctx.fillRect(e.x, e.y, e.width, e.height));
+
+            // HUD (점수/체력)
+            ctx.fillStyle = "#fff";
+            ctx.font = "16px sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText("점수: " + score, 10, 25);
+            ctx.fillText("체력: " + player.hp, 10, 50);
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
+"""
+
+# 게임 화면 렌더링
+components.html(game_html, height=680)
