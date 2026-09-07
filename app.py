@@ -3,8 +3,8 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="병맛 자음 스피드 퀴즈", page_icon="🧩", layout="centered")
 
-st.title("🧩 [초스피드] 병맛 자음 맞추기 배틀")
-st.write("화면에 나오는 초성을 보고 제한시간 안에 정답을 맞추세요!")
+st.title("🧩 [30초 스피드] 병맛 자음 맞추기 배틀")
+st.write("틀려도 정답 확인 후 바로 다음 문제로 넘어갑니다! 제한시간 동안 최다 득점에 도전하세요.")
 
 game_html = """
 <!DOCTYPE html>
@@ -16,7 +16,7 @@ game_html = """
             margin: 0; padding: 0;
             background-color: #0f172a;
             color: #fff;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: sans-serif;
             text-align: center;
         }
         #quiz-card {
@@ -29,16 +29,16 @@ game_html = """
             box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
         }
         .initials {
-            font-size: 54px;
+            font-size: 48px;
             font-weight: bold;
             color: #facc15;
-            letter-spacing: 10px;
+            letter-spacing: 8px;
             margin: 15px 0;
         }
         .hint {
             font-size: 18px;
             color: #94a3b8;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         input[type="text"] {
             width: 80%;
@@ -72,9 +72,9 @@ game_html = """
         }
         button:hover { background-color: #7dd3fc; }
         #result-msg {
-            font-size: 20px;
+            font-size: 18px;
             height: 30px;
-            margin-top: 10px;
+            margin-top: 12px;
             font-weight: bold;
         }
     </style>
@@ -103,7 +103,9 @@ game_html = """
             { initials: "ㅍㅇㅆ", answer: "피씨방", hint: "친구들과 라면 먹으러 가는데" },
             { initials: "ㅊㅋ", answer: "치킨", hint: "승리했을 때 먹는 음식" },
             { initials: "ㄷㄱㅂㅁ", answer: "닭갈비", hint: "철판에 볶아먹는 맛있는 요리" },
-            { initials: "ㅎㅂㄱ", answer: "햄버거", hint: "패스트푸드 대표 메뉴" }
+            { initials: "ㅎㅂㄱ", answer: "햄버거", hint: "패스트푸드 대표 메뉴" },
+            { initials: "ㅇㅅㅇ", answer: "야스오", hint: "하사기! 바람장막!" },
+            { initials: "ㅅㅇㄹㅅ", answer: "사일러스", hint: "궁극기 강탈하는 챔피언" }
         ];
 
         let currentQuiz = {};
@@ -111,6 +113,7 @@ game_html = """
         let timeLeft = 30;
         let timer;
         let isPlaying = false;
+        let isLock = false; // 정답/오답 연출 중 중복 입력 방지
 
         const hintEl = document.getElementById("hint-text");
         const initialsEl = document.getElementById("initials-text");
@@ -124,6 +127,7 @@ game_html = """
             score = 0;
             timeLeft = 30;
             isPlaying = true;
+            isLock = false;
             scoreEl.innerText = score;
             timeEl.innerText = timeLeft;
             startBtn.style.display = "none";
@@ -147,21 +151,31 @@ game_html = """
             hintEl.innerText = "💡 힌트: " + currentQuiz.hint;
             initialsEl.innerText = currentQuiz.initials;
             inputEl.value = "";
-            resultEl.innerText = "";
+            isLock = false;
+            inputEl.focus();
         }
 
         function checkEnter(e) {
-            if (e.key === "Enter" && isPlaying) {
+            if (e.key === "Enter" && isPlaying && !isLock) {
+                isLock = true;
                 const val = inputEl.value.trim().replace(/\s+/g, "");
+                
                 if (val === currentQuiz.answer) {
                     score += 100;
                     scoreEl.innerText = score;
                     resultEl.style.color = "#4ade80";
-                    resultEl.innerText = "⭕ 정답! (+100점)";
-                    nextQuiz();
+                    resultEl.innerText = "⭕ 정답입니다! (+100점)";
+                    setTimeout(() => {
+                        resultEl.innerText = "";
+                        nextQuiz();
+                    }, 600);
                 } else {
                     resultEl.style.color = "#f87171";
-                    resultEl.innerText = "❌ 땡! 다시 생각해보세요.";
+                    resultEl.innerText = `❌ 오답! 정답은 [${currentQuiz.answer}] 입니다.`;
+                    setTimeout(() => {
+                        resultEl.innerText = "";
+                        nextQuiz();
+                    }, 1200); // 1.2초 동안 정답 보여주고 다음 문제 이동
                 }
             }
         }
