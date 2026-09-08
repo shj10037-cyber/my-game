@@ -1,10 +1,10 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="스피드 가위바위보", page_icon="✊", layout="centered")
+st.set_page_config(page_title="병맛 자음 스피드 퀴즈", page_icon="🧩", layout="centered")
 
-st.title("✊✌️🖐️ [30초 스피드] 가위바위보 카드 배틀")
-st.write("상대가 낸 카드를 보고 이기는 카드를 누구보다 빠르게 클릭하세요!")
+st.title("🧩 [30초 스피드] 병맛 초성 맞추기 대전")
+st.write("초성을 보고 정답을 입력 후 Enter! 틀리면 정답을 보여주고 계속 진행됩니다.")
 
 game_html = """
 <!DOCTYPE html>
@@ -19,68 +19,62 @@ game_html = """
             font-family: sans-serif;
             text-align: center;
         }
-        #game-card {
-            width: 450px;
+        #quiz-card {
+            width: 480px;
             padding: 20px;
             background: #1e293b;
-            border: 3px solid #10b981;
+            border: 3px solid #38bdf8;
             border-radius: 12px;
             margin: 15px auto;
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
         }
-        .enemy-box {
+        .initials {
+            font-size: 48px;
+            font-weight: bold;
+            color: #facc15;
+            letter-spacing: 8px;
             margin: 15px 0;
         }
-        .enemy-card {
-            font-size: 80px;
-            margin: 10px 0;
+        .hint {
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 10px;
         }
-        .btn-group {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .choice-btn {
-            font-size: 40px;
-            padding: 15px 25px;
-            background: #334155;
-            border: 2px solid #10b981;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: transform 0.1s, background 0.2s;
-        }
-        .choice-btn:hover {
-            background: #475569;
-            transform: scale(1.05);
-        }
-        .choice-btn:active {
-            transform: scale(0.95);
+        input[type="text"] {
+            width: 80%;
+            padding: 12px;
+            font-size: 20px;
+            text-align: center;
+            border: 2px solid #38bdf8;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #fff;
+            outline: none;
         }
         .hud {
             display: flex;
             justify-content: space-around;
-            width: 450px;
+            width: 480px;
             margin: 0 auto;
             font-size: 20px;
             font-weight: bold;
         }
-        #start-btn {
+        button {
             padding: 12px 24px;
             font-size: 18px;
-            background-color: #10b981;
+            background-color: #38bdf8;
             color: #0f172a;
             font-weight: bold;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 15px;
         }
-        #start-btn:hover { background-color: #34d399; }
+        button:hover { background-color: #7dd3fc; }
         #result-msg {
             font-size: 18px;
             height: 30px;
-            margin-top: 15px;
+            margin-top: 12px;
             font-weight: bold;
         }
     </style>
@@ -91,36 +85,41 @@ game_html = """
         <div>남은 시간: <span id="time">30</span>초</div>
     </div>
 
-    <div id="game-card">
-        <div class="enemy-box">
-            <div style="font-size: 18px; color: #94a3b8;">상대방의 카드</div>
-            <div class="enemy-card" id="enemy-display">❓</div>
-        </div>
-        
-        <div style="font-size: 16px; color: #cbd5e1;">이기는 카드를 누르세요!</div>
-        <div class="btn-group">
-            <button class="choice-btn" onclick="play('scissors')">✌️</button>
-            <button class="choice-btn" onclick="play('rock')">✊</button>
-            <button class="choice-btn" onclick="play('paper')">🖐️</button>
-        </div>
+    <div id="quiz-card">
+        <div class="hint" id="hint-text">게임 시작 버튼을 누르세요!</div>
+        <div class="initials" id="initials-text">🔍</div>
+        <input type="text" id="user-input" placeholder="정답 입력 후 Enter" disabled onkeydown="checkEnter(event)">
         <div id="result-msg"></div>
     </div>
 
     <button id="start-btn" onclick="startGame()">🎮 게임 시작!</button>
 
     <script>
-        const choices = ['scissors', 'rock', 'paper'];
-        const emojiMap = { 'scissors': '✌️', 'rock': '✊', 'paper': '🖐️' };
-        const winMap = { 'scissors': 'rock', 'rock': 'paper', 'paper': 'scissors' }; // 내가 이기려면 내야 하는 카드
+        const quizData = [
+            { initials: "ㄹㄱㅇㅂㄹㅈㄷ", answer: "리그오브레전드", hint: "유명한 5v5 MOBA 게임" },
+            { initials: "ㅁㅌㅊㅋ", answer: "민트초코", hint: "호불호 끝판왕 디저트" },
+            { initials: "ㅂㄷㄱ", answer: "비둘기", hint: "길거리 구곡물 섭취자" },
+            { initials: "ㅋㅍㅇ", answer: "커피", hint: "잠 깨려고 마시는 음료" },
+            { initials: "ㅍㅇㅆ", answer: "피씨방", hint: "친구들과 라면 먹으러 가는데" },
+            { initials: "ㅊㅋ", answer: "치킨", hint: "승리했을 때 먹는 음식" },
+            { initials: "ㄷㄱㅂㅁ", answer: "닭갈비", hint: "철판에 볶아먹는 맛있는 요리" },
+            { initials: "ㅎㅂㄱ", answer: "햄버거", hint: "패스트푸드 대표 메뉴" },
+            { initials: "ㅇㅅㅇ", answer: "야스오", hint: "하사기! 바람장막!" },
+            { initials: "ㅅㅇㄹㅅ", answer: "사일러스", hint: "궁극기 강탈하는 챔피언" },
+            { initials: "ㅋㅇㅅ", answer: "카이사", hint: "공허의 딸 ADC 챔피언" },
+            { initials: "ㅂㄱㄱ", answer: "불고기", hint: "달콤 짭조름한 대표 한식 요리" }
+        ];
 
-        let currentEnemy = '';
+        let currentQuiz = {};
         let score = 0;
         let timeLeft = 30;
         let timer;
         let isPlaying = false;
         let isLock = false;
 
-        const enemyEl = document.getElementById("enemy-display");
+        const hintEl = document.getElementById("hint-text");
+        const initialsEl = document.getElementById("initials-text");
+        const inputEl = document.getElementById("user-input");
         const scoreEl = document.getElementById("score");
         const timeEl = document.getElementById("time");
         const startBtn = document.getElementById("start-btn");
@@ -134,9 +133,10 @@ game_html = """
             scoreEl.innerText = score;
             timeEl.innerText = timeLeft;
             startBtn.style.display = "none";
-            resultEl.innerText = "";
+            inputEl.disabled = false;
+            inputEl.focus();
 
-            nextRound();
+            nextQuiz();
 
             timer = setInterval(() => {
                 timeLeft--;
@@ -147,46 +147,49 @@ game_html = """
             }, 1000);
         }
 
-        function nextRound() {
-            const randomIndex = Math.floor(Math.random() * choices.length);
-            currentEnemy = choices[randomIndex];
-            enemyEl.innerText = emojiMap[currentEnemy];
+        function nextQuiz() {
+            const randomIndex = Math.floor(Math.random() * quizData.length);
+            currentQuiz = quizData[randomIndex];
+            hintEl.innerText = "💡 힌트: " + currentQuiz.hint;
+            initialsEl.innerText = currentQuiz.initials;
+            inputEl.value = "";
             isLock = false;
+            inputEl.focus();
         }
 
-        function play(myChoice) {
-            if (!isPlaying || isLock) return;
-            isLock = true;
-
-            const correctChoice = winMap[currentEnemy];
-
-            if (myChoice === correctChoice) {
-                score += 100;
-                scoreEl.innerText = score;
-                resultEl.style.color = "#4ade80";
-                resultEl.innerText = "⭕ 승리! (+100점)";
-                setTimeout(() => {
-                    resultEl.innerText = "";
-                    nextRound();
-                }, 300);
-            } else {
-                score = Math.max(0, score - 50);
-                scoreEl.innerText = score;
-                resultEl.style.color = "#f87171";
-                resultEl.innerText = `❌ 오답! 정답: [${emojiMap[correctChoice]}] (-50점)`;
-                setTimeout(() => {
-                    resultEl.innerText = "";
-                    nextRound();
-                }, 800);
+        function checkEnter(e) {
+            if (e.key === "Enter" && isPlaying && !isLock) {
+                isLock = true;
+                const val = inputEl.value.trim().replace(/\s+/g, "");
+                
+                if (val === currentQuiz.answer) {
+                    score += 100;
+                    scoreEl.innerText = score;
+                    resultEl.style.color = "#4ade80";
+                    resultEl.innerText = "⭕ 정답입니다! (+100점)";
+                    setTimeout(() => {
+                        resultEl.innerText = "";
+                        nextQuiz();
+                    }, 500);
+                } else {
+                    resultEl.style.color = "#f87171";
+                    resultEl.innerText = `❌ 오답! 정답은 [${currentQuiz.answer}] 입니다.`;
+                    setTimeout(() => {
+                        resultEl.innerText = "";
+                        nextQuiz();
+                    }, 1100);
+                }
             }
         }
 
         function endGame() {
             isPlaying = false;
             clearInterval(timer);
-            enemyEl.innerText = "🏆";
+            inputEl.disabled = true;
+            hintEl.innerText = "🏆 게임 종료!";
+            initialsEl.innerText = "🎉";
             resultEl.style.color = "#facc15";
-            resultEl.innerText = "게임 종료! 최종 점수: " + score + "점";
+            resultEl.innerText = "최종 점수: " + score + "점";
             startBtn.innerText = "🔄 다시 하기";
             startBtn.style.display = "inline-block";
         }
